@@ -1,0 +1,5 @@
+# vitrual env
+.venv
+
+# datasets
+data/*
