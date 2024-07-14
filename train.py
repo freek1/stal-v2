@@ -95,7 +95,7 @@ for i in range(0, len(test_X), batch_size):
     loss = default_loss(h, x_test, Z1, Z2)
     test_loss.append(loss.item())
 print("---")
-print(f"Test Loss (mean): {np.mean(test_loss)}")
+print(f"Test Loss: {np.mean(test_loss)}")
 print("---")
 
 end = time.time()
