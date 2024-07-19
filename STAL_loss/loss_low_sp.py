@@ -7,7 +7,7 @@ class DefaultLoss(torch.nn.Module):
     """
     def __init__(self):
         super(DefaultLoss, self).__init__()
-        self.__name__ = "Default Loss"
+        self.__name__ = "Low Spikes Loss"
         print(f"{self.__name__} initialized.")
 
     def forward(self, h, X, Z1, Z2):
@@ -27,8 +27,8 @@ class DefaultLoss(torch.nn.Module):
         n_samples = X.shape[0]
         n_timesteps = X.shape[1]
         h_unroll = h.reshape(n_samples, n_timesteps, -1)
-        n_spikes_per_timestep = h_unroll.shape[2]
-        weights = torch.arange(1, n_spikes_per_timestep + 1, dtype=h_unroll.dtype, device=h_unroll.device)
+        psi = h_unroll.shape[2]
+        weights = torch.arange(1, psi + 1, dtype=h_unroll.dtype, device=h_unroll.device)
         # Reverse the weights, so that the first spike is the most important
         weights = torch.flip(weights, [0])
         h_weighted = torch.sum(h_unroll * weights, dim=2)
@@ -48,9 +48,8 @@ class DefaultLoss(torch.nn.Module):
         area_X = torch.sum(X, dim=1)
         n_spikes = torch.sum(h, dim=1)
         
-        # E.g., we want to have 525 spikes if the area of X is 525,
-        # so we add a loss of the L1 or L2 distance:  
-        L1 = torch.abs(n_spikes - (area_X * n_spikes_per_timestep))        
+        area_X = 5
+        L1 = torch.abs(n_spikes - (area_X * psi))        
        
         MI = mi
         cnt = 1

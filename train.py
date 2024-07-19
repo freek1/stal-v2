@@ -6,14 +6,17 @@ import time
 
 from mnist.load_mnist import load_mnist
 from STAL.STAL import SpikeThresholdAdaptiveLearning
+# from STAL_loss.loss_low_sp import DefaultLoss
 from STAL_loss.default_loss import DefaultLoss
+
+device = torch.device("mps")
 
 train_X, train_y, test_X, test_y = load_mnist()
 
 print(train_X[0].shape, train_y[0])
 
 omega = train_X[0].size(0)
-psi = 10
+psi = 50
 c = 1
 l1_sz = omega // 2 # 392
 l2_sz = omega // 4 # 196
@@ -58,7 +61,9 @@ optimizer = torch.optim.AdamW(STAL.parameters(), lr=0.001)
 
 # Train/Validation
 train_X, val_X, train_y, val_y = train_test_split(train_X, train_y, test_size=0.2, random_state=42)
-n_epochs = 5
+n_epochs = 15
+
+STAL.to(device)
 
 start = time.time()
 
@@ -67,7 +72,7 @@ val_loss = []
 for epoch in range(n_epochs):
     e = []
     for i in range(0, len(train_X), batch_size):
-        x_train = train_X[i:i+batch_size]
+        x_train = train_X[i:i+batch_size].to(device)
         optimizer.zero_grad()
         h, Z1, Z2 = STAL(x_train)
         loss = default_loss(h, x_train, Z1, Z2)
@@ -75,31 +80,31 @@ for epoch in range(n_epochs):
         optimizer.step()
         e.append(loss.item())
     train_loss.append(np.mean(e))
-    print(f"Epoch {epoch + 1} - Train Loss: {train_loss[-1]}")
+    print(f"Epoch {epoch + 1} - Train Loss: {train_loss[-1]:.3f}")
     
     e = []
     with torch.no_grad():
         for i in range(0, len(val_X), batch_size):
-            x_val = val_X[i:i+batch_size]
+            x_val = val_X[i:i+batch_size].to(device)
             h, Z1, Z2 = STAL(x_val)
             loss = default_loss(h, x_val, Z1, Z2)
             e.append(loss.item())
     val_loss.append(np.mean(e))
-    print(f"\t- Validation Loss: {val_loss[-1]}")
+    print(f"\t- Validation Loss: {val_loss[-1]:.3f}")
 
 # Test
 test_loss = []
 for i in range(0, len(test_X), batch_size):
-    x_test = test_X[:batch_size]
+    x_test = test_X[:batch_size].to(device)
     h, Z1, Z2 = STAL(x_test)
     loss = default_loss(h, x_test, Z1, Z2)
     test_loss.append(loss.item())
 print("---")
-print(f"Test Loss: {np.mean(test_loss)}")
+print(f"Test Loss: {np.mean(test_loss):.3f}")
 print("---")
 
 end = time.time()
-print(f"Training took {end-start:.3f}s")
+print(f"Training took {end-start:.2f}s")
 
 plt.plot(train_loss, label="Train")
 plt.plot(val_loss, label="Validation")
@@ -112,6 +117,7 @@ plt.savefig("img/loss_curves_STAL_mnist")
 plt.close()
 
 # Inspect the spike train after training
+STAL.cpu()
 STAL.eval()
 
 batch_size = 1000
@@ -134,5 +140,6 @@ axs[1].legend()
 
 plt.suptitle("Spike trains after training of STAL")
 plt.tight_layout()
-plt.savefig("img/post_training_example_mnist.png")
+plt.savefig("img/post_training_example_mnist_low_sp.png")
 plt.close()
+
