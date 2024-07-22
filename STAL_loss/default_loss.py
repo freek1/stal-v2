@@ -54,12 +54,12 @@ class DefaultLoss(torch.nn.Module):
        
         MI = mi
         cnt = 1
-        if Z1 is not None and Z2 is None:
-            MI += mi_Z1
-            cnt += 1
-        if Z2 is not None:
-            MI += mi_Z2
-            cnt += 2
+        # if Z1 is not None and Z2 is None:
+        #     MI += mi_Z1
+        #     cnt += 1
+        # if Z2 is not None:
+        #     MI += mi_Z2
+        #     cnt += 2
         loss = -(MI/cnt) + torch.mean(L1) 
 
         return loss
