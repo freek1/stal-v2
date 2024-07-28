@@ -1,13 +1,13 @@
 import torch
 
-class DefaultLoss(torch.nn.Module):
+class MILoss(torch.nn.Module):
     """
-    (Novel) Encoder Loss function L = L_MI + L_S
-    Mutual Information part + Sparsity part.
+    (Novel) Encoder Loss function L = L_MI
+    Maximize Mutual Information.
     """
     def __init__(self):
-        super(DefaultLoss, self).__init__()
-        self.__name__ = "Low Spikes Loss"
+        super(MILoss, self).__init__()
+        self.__name__ = "Default Loss"
         print(f"{self.__name__} initialized.")
 
     def forward(self, h, X, Z1, Z2):
@@ -24,44 +24,19 @@ class DefaultLoss(torch.nn.Module):
         if Z2 is not None:
             assert X.shape == Z2.shape, f"X and Z2 must have the same shape: {X.shape} != {Z2.shape}."
         
-        print(X.shape)
-        
         n_samples = X.shape[0]
         n_timesteps = X.shape[1]
         h_unroll = h.reshape(n_samples, n_timesteps, -1)
-        psi = h_unroll.shape[2]
-        weights = torch.arange(1, psi + 1, dtype=h_unroll.dtype, device=h_unroll.device)
+        n_spikes_per_timestep = h_unroll.shape[2]
+        weights = torch.arange(1, n_spikes_per_timestep + 1, dtype=h_unroll.dtype, device=h_unroll.device)
         # Reverse the weights, so that the first spike is the most important
         weights = torch.flip(weights, [0])
         h_weighted = torch.sum(h_unroll * weights, dim=2)
         
         mi = compute_mutual_information(X, h_weighted)
-        
-        mi_Z1 = 0 
-        mi_Z2 = 0
-        if Z1 is not None:
-            mi_Z1 = compute_mutual_information(X, Z1)
-        if Z2 is not None:            
-            mi_Z2 = compute_mutual_information(X, Z2)
-        
-        # Instead of punishing many spikes, i.e. every spike (L1 norm),
-        # we can try punishing the difference in spikes from the area of the input signal
-        
-        area_X = torch.sum(X, dim=1)
-        n_spikes = torch.sum(h, dim=1)
-        
-        area_X = 50
-        L1 = torch.abs(n_spikes - (area_X * psi))        
        
         MI = mi
-        cnt = 1
-        # if Z1 is not None and Z2 is None:
-        #     MI += mi_Z1
-        #     cnt += 1
-        # if Z2 is not None:
-        #     MI += mi_Z2
-        #     cnt += 2
-        loss = -(MI/cnt) + torch.mean(L1) 
+        loss = -(MI)
 
         return loss
     
