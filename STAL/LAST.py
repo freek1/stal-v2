@@ -41,7 +41,7 @@ class LearningAdaptiveSpikeThresholds(torch.nn.Module):
         # ###
         # Logic to handle the hidden layers (or lack thereof)
         # ###
-        # STAL-Vanilla case [no hidden layers]
+        # LAST-Vanilla case [no hidden layers]
         if self.l1_sz == 0:
             self.l2_sz = 0 # assumption we enforce
             
@@ -90,7 +90,7 @@ class LearningAdaptiveSpikeThresholds(torch.nn.Module):
                 
             self.match_out = RepeatLayer(l1_sz, output_size)
 
-        # STAL-Stacked case [two hidden layers]
+        # LAST-Stacked case [two hidden layers]
         if self.l1_sz > 0 and self.l2_sz > 0:
             self.lin1 = torch.nn.Linear(input_size, self.l1_sz)
             self.relu1 = torch.nn.ReLU()
@@ -151,7 +151,7 @@ class LearningAdaptiveSpikeThresholds(torch.nn.Module):
         Z1 = None
         Z2 = None
         
-        # STAL-Vanilla case [no hidden layers]
+        # LAST-Vanilla case [no hidden layers]
         if self.l1_sz == 0:
             x = self.match_out(x)
         
@@ -167,7 +167,7 @@ class LearningAdaptiveSpikeThresholds(torch.nn.Module):
             
             x = self.match_out(x)
         
-        # STAL-Stacked case [two hidden layers]
+        # LAST-Stacked case [two hidden layers]
         if self.l1_sz > 0 and self.l2_sz > 0:
             x = self.lin1(x)
             x = self.drop1(x)
@@ -196,8 +196,8 @@ class LearningAdaptiveSpikeThresholds(torch.nn.Module):
         thresholded_feats = torch.sigmoid(alpha * (extracted_feats - self.threshold_adder.unsqueeze(0)))
         
         # Clamp the thresholds to avoid numerical instability
-        # with torch.no_grad():
-        #     self.threshold_adder.clamp_(0.001, 1.0)
+        with torch.no_grad():
+            self.threshold_adder.clamp_(0.001, 1.0)
 
         return thresholded_feats, Z1, Z2
     
@@ -236,15 +236,18 @@ class ConvolutionalAdaptiveSpikeThrehsolds(torch.nn.Module):
         self.l2_sz = l2_sz  
         self.drop_p = drop_p
 
-        input_size = omega * c
+        input_size = omega * 1
         output_size = omega * psi
 
         self.output_size = output_size
+
+        # Convolutional layer to combine the channels
+        self.conv = torch.nn.Conv1d(in_channels=c, out_channels=1, kernel_size=1)
         
         # ###
         # Logic to handle the hidden layers (or lack thereof)
         # ###
-        # STAL-Vanilla case [no hidden layers]
+        # LAST-Vanilla case [no hidden layers]
         if self.l1_sz == 0:
             self.l2_sz = 0 # assumption we enforce
             
@@ -293,7 +296,7 @@ class ConvolutionalAdaptiveSpikeThrehsolds(torch.nn.Module):
                 
             self.match_out = RepeatLayer(l1_sz, output_size)
 
-        # STAL-Stacked case [two hidden layers]
+        # LAST-Stacked case [two hidden layers]
         if self.l1_sz > 0 and self.l2_sz > 0:
             self.lin1 = torch.nn.Linear(input_size, self.l1_sz)
             self.relu1 = torch.nn.ReLU()
@@ -349,12 +352,18 @@ class ConvolutionalAdaptiveSpikeThrehsolds(torch.nn.Module):
         
     def forward(self, x):
         batch_size = x.size(0)
-        x = x.view(batch_size, -1) # flatten the input
         
+        print(x.shape)
+        
+        # Convolutional layer to combine the channels
+        x = x.reshape(batch_size, self.c, self.omega)
+        x = self.conv(x)
+        x = x.squeeze(1) # Squeeze the c dimension
+
         Z1 = None
         Z2 = None
         
-        # STAL-Vanilla case [no hidden layers]
+        # LAST-Vanilla case [no hidden layers]
         if self.l1_sz == 0:
             x = self.match_out(x)
         
@@ -370,7 +379,7 @@ class ConvolutionalAdaptiveSpikeThrehsolds(torch.nn.Module):
             
             x = self.match_out(x)
         
-        # STAL-Stacked case [two hidden layers]
+        # LAST-Stacked case [two hidden layers]
         if self.l1_sz > 0 and self.l2_sz > 0:
             x = self.lin1(x)
             x = self.drop1(x)
@@ -391,16 +400,16 @@ class ConvolutionalAdaptiveSpikeThrehsolds(torch.nn.Module):
             x = self.match_out(x)
 
         # Final surrogate thresholding
-        extracted_feats = x
-
+        extracted_feats = x.reshape(batch_size, -1)
+        
         # Binary thesholds break the gradient propagation, so they cannot be used, 
         # therefore we use a surrogate: sigmoid w/ slope=25
         alpha = 100.0
         thresholded_feats = torch.sigmoid(alpha * (extracted_feats - self.threshold_adder.unsqueeze(0)))
         
         # Clamp the thresholds to avoid numerical instability
-        # with torch.no_grad():
-        #     self.threshold_adder.clamp_(0.001, 1.0)
+        with torch.no_grad():
+            self.threshold_adder.clamp_(0.001, 1.0)
 
         return thresholded_feats, Z1, Z2
     
@@ -410,5 +419,5 @@ class ConvolutionalAdaptiveSpikeThrehsolds(torch.nn.Module):
 
     def print_learnable_params(self):
         total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        print("Total Learnable Parameters (STAL):", total_params)
+        print("Total Learnable Parameters (LAST):", total_params)
         

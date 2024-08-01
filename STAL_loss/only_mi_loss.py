@@ -10,7 +10,7 @@ class MILoss(torch.nn.Module):
         self.__name__ = "Default Loss"
         print(f"{self.__name__} initialized.")
 
-    def forward(self, h, X, Z1, Z2):
+    def forward(self, h, X, Z1, Z2, conv=True):
         """
         h: torch.Tensor[batch, omega * c * psi], encoded 'spiketrain', not binarized yet (\hat{B} in the paper)
         X: torch.Tensor[batch, omega, c, psi], input signal (\hat{X} in the paper)
@@ -22,6 +22,8 @@ class MILoss(torch.nn.Module):
         n_samples = X.shape[0]
         n_timesteps = X.shape[1]
         n_channels = X.shape[2]
+        if conv:
+            n_channels = 1
         
         h_unroll = h.reshape(n_samples, n_timesteps, n_channels, -1)
         

@@ -7,6 +7,7 @@ import time
 from snntorch import spikegen
 
 from STAL.LAST import LearningAdaptiveSpikeThresholds
+from STAL.LAST import ConvolutionalAdaptiveSpikeThrehsolds as LearningAdaptiveSpikeThresholds 
 from STAL_loss.only_mi_loss import MILoss as DefaultLoss
 
 def load_data_roshambo():
@@ -31,8 +32,8 @@ print(train_X.size(0), val_X.size(0), test_X.size(0))
 n_samples, omega, c = train_X.size()
 
 psi = 50
-l1_sz = 100 #omega // 2
-l2_sz = 100 #omega // 2
+l1_sz = 2000 #omega // 2
+l2_sz = 2000 #omega // 2
 drop_p = 0.
 
 STAL = LearningAdaptiveSpikeThresholds(omega, psi, c, l1_sz, l2_sz, drop_p)
@@ -46,7 +47,7 @@ h, Z1, Z2 = STAL(x)
 theta = 0.99
 spiketrain = (h > theta).float()
 
-B = spiketrain.reshape(batch_size, omega, c, psi)
+B = spiketrain.reshape(batch_size, omega, -1, psi)
 # bsz, omega, c, psi
 
 b = B[0]
@@ -81,7 +82,7 @@ plt.close()
 default_loss = DefaultLoss()
 optimizer = torch.optim.AdamW(STAL.parameters(), lr=0.1)
 
-n_epochs = 20
+n_epochs = 50
 STAL.to(device)
 
 start = time.time()
@@ -93,7 +94,7 @@ val_spiketrains = []
 for epoch in range(n_epochs):
     e = []
     for i in range(0, len(train_X), batch_size):
-        bsz = max(0, min(batch_size, len(test_X) - i))
+        bsz = max(0, min(batch_size, len(train_X) - i))
         if bsz == 0:
             break
         x_train = train_X[i:i+bsz].to(device)
@@ -112,7 +113,7 @@ for epoch in range(n_epochs):
     e = []
     with torch.no_grad():
         for i in range(0, len(val_X), batch_size):
-            bsz = max(0, min(batch_size, len(test_X) - i))
+            bsz = max(0, min(batch_size, len(val_X) - i))
             if bsz == 0:
                 break
             x_val = val_X[i:i+bsz].to(device)
@@ -163,9 +164,9 @@ plot_loss(train_loss, val_loss, test_loss)
 STAL.cpu()
 STAL.eval()
 
-B_STAL_tr = train_spiketrains.reshape(-1, omega, c, psi)
-B_STAL_val = val_spiketrains.reshape(-1, omega, c, psi)
-B_STAL_ts = test_spiketrains.reshape(-1, omega, c, psi)
+B_STAL_tr = train_spiketrains.reshape(train_X.size(0), omega, 1, psi)
+B_STAL_val = val_spiketrains.reshape(val_X.size(0), omega, 1, psi)
+B_STAL_ts = test_spiketrains.reshape(test_X.size(0), omega, 1, psi)
 
 # ------------
 # Inspect the spike train after training
