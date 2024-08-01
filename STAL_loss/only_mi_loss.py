@@ -12,10 +12,10 @@ class MILoss(torch.nn.Module):
 
     def forward(self, h, X, Z1, Z2):
         """
-        W: torch.Tensor[batch, omega, psi], encoded 'spiketrain', not binarized yet (\hat{B} in the paper)
-        X: torch.Tensor[batch, omega, psi], input signal (\hat{X} in the paper)
-        Z1: torch.Tensor[batch, omega, psi], representation of Layer 1
-        Z2: torch.Tensor[batch, omega, psi], representation of Layer 2
+        h: torch.Tensor[batch, omega * c * psi], encoded 'spiketrain', not binarized yet (\hat{B} in the paper)
+        X: torch.Tensor[batch, omega, c, psi], input signal (\hat{X} in the paper)
+        Z1: torch.Tensor[batch, omega * c * psi], representation of Layer 1
+        Z2: torch.Tensor[batch, omega * c * psi], representation of Layer 2
         """
         assert isinstance(X, torch.Tensor) and isinstance(h, torch.Tensor), "X and h must be torch tensors."
         
@@ -26,7 +26,7 @@ class MILoss(torch.nn.Module):
         h_unroll = h.reshape(n_samples, n_timesteps, n_channels, -1)
         
         n_spikes_per_timestep = h_unroll.shape[3]
-        weights = torch.arange(1, n_spikes_per_timestep + 1, dtype=h_unroll.dtype, device=h_unroll.device) * 10
+        weights = torch.arange(1, n_spikes_per_timestep + 1, dtype=h_unroll.dtype, device=h_unroll.device) * 100
         # Reverse the weights, so that the first spike is the most important
         weights = torch.flip(weights, [0])
         h_weighted = torch.sum(h_unroll * weights, dim=3)
@@ -34,17 +34,17 @@ class MILoss(torch.nn.Module):
         mi = compute_mutual_information(X, h_weighted)
        
         MI = mi
-        loss = -(MI)
+        loss = -MI
 
         return loss
     
 def compute_mutual_information(X, Y):
     """ 
-    Computes the mutual information between two random variables X and Z.
+    Computes the mutual information between two random variables X and Y.
     All computations are done using torch operations, to keep the gradient flow.
     """
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("X and W must have the same number of samples.")
+        raise ValueError("X and Y must have the same number of samples.")
     
     if X.ndim == 3:
         if X.size(2) == 1:

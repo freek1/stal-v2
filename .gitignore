@@ -1,5 +1,6 @@
 # vitrual env
 .venv
+__pycache__
 
 # datasets
 data/*

@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 import time
 
 from mnist.load_mnist import load_mnist
-from STAL.STAL import SpikeThresholdAdaptiveLearning
+from STAL.LAST import SpikeThresholdAdaptiveLearning
 # from STAL_loss.loss_low_sp import DefaultLoss
 from STAL_loss.default_loss import DefaultLoss
 
